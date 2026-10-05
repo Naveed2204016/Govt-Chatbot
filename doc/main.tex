@@ -16,12 +16,16 @@
 
 \title{JOURNAL}
 
-\author{Author~One, Author~Two, Author~Three%
-\IEEEcompsocitemizethanks{
-\IEEEcompsocthanksitem Author affiliations go here.
-\protect\\
-E-mail: author@example.com
-}
+\author{
+\begin{tabular}{ccc}
+\textbf{Arka Dutta} &
+\textbf{Naveed Wazeed Khan} &
+\textbf{Hasan Murad} \\
+
+\texttt{u2204025@student.cuet.ac.bd} &
+\texttt{u2204016@student.cuet.ac.bd} &
+\texttt{hasanmurad@cuet.ac.bd}
+\end{tabular}
 }
 
 \markboth{IEEE Journal Submission Draft}%
@@ -198,7 +202,7 @@ The model received an instruction and a test question without example answers. T
 
 \subsubsection{Few-Shot Prompting}
 
-Few-shot prompting used three example questions and answers~\cite{meth_brown2020fewshot} to establish the expected response format. For each service domain, three pairs were sampled from the training set using random seed 42, after removing duplicate questions and normalized exact matches with test questions. The selected examples were placed before each test question from the corresponding domain and remained fixed throughout the experiment. Qwen, Llama, and Mistral received the same examples in the same order, formatted according to their respective conversational templates. This arrangement provided a common set of demonstrations for comparing the three models.
+Few-shot prompting used three example questions and answers~\cite{meth_brown2020fewshot} to establish the expected response format. For each service domain, three pairs were sampled from the training set using random seed 42. After removing duplicate questions and normalized exact matches with test questions, the selected examples were placed before each test question from the corresponding domain and remained fixed throughout the experiment. Qwen, Llama, and Mistral received the same examples in the same order, formatted according to their respective conversational templates. This arrangement provided a common set of demonstrations for comparing the three models.
 
 \subsubsection{Few-Shot Chain-of-Thought Prompting}
 
@@ -263,7 +267,7 @@ Random seed & 3407 \\
 \end{tabular}
 \end{table}
 
-The fine-tuned generators then answered the test questions without access to the retrieval index. The output limit was 500 tokens for Llama and 256 tokens for Qwen and Mistral.
+The fine-tuned generators then answered the test questions without access to the retrieval index. The output limit was 500 tokens for all three models.
 
 \subsection{Experiment 3: RAG}
 \label{exp:3}
@@ -327,7 +331,7 @@ Passages supplied to generator & 5 \\
 
 The prompt combined the question with the titles and contents of the selected passages. It requested a concise Bangla answer based on that evidence and called attention to fees, processing times, numerical values, and required documents. If the retrieved material did not contain the requested information, the model was instructed to acknowledge this.
 
-The generators received the same selected passages for each question. RAG inference used greedy decoding, a repetition penalty of 1.05, and an input limit of 7,000 tokens. The output limit was 450 tokens for Qwen and 500 tokens for Llama and Mistral.
+The generators received the same selected passages for each question. RAG inference used greedy decoding, a repetition penalty of 1.05, and an input limit of 7,000 tokens. The output limit 500 tokens for three models.
 
 \subsection{Experiment 4: Combining Fine-Tuning and RAG}
 \label{exp:4}
@@ -337,17 +341,327 @@ The final experiment combined the generators adapted in Experiment~\ref{exp:2} w
 This comparison examined whether adaptation on the government service QA pairs helped a generator answer when external evidence was available. Comparing the combined setting with standalone fine-tuning assessed the contribution of retrieval. Comparing it with RAG assessed the effect of generator adaptation under the same evidence. The combined setting used greedy decoding, a repetition penalty of 1.05, a maximum input length of 7,000 tokens, and an output limit of 500 tokens for all three generators.
 
 \section{Results and Discussion}
-\label{sec:Results And Dis}
 
-% Intentionally left blank.
+This section presents the experimental results of the evaluated large
+language models for Bangla government-service question answering. The
+analysis covers prompting-based baselines, supervised fine-tuning,
+Retrieval-Augmented Generation (RAG), and the hybrid RAG + Fine-Tuning
+configuration. Performance is examined using exact, lexical, and semantic
+evaluation metrics, followed by analysis of adaptation strategies and
+cross-model behavior.
+
+\subsection{Evaluation Metrics}
+
+The evaluated models were assessed using multiple automatic metrics to
+capture exact agreement, lexical overlap, and semantic similarity between
+generated responses and reference answers. Since no single metric fully
+represents generative answer quality, the metrics were considered jointly.
+
+\textbf{Exact Match (EM)} measures the proportion of generated responses
+that exactly match the reference answers after normalization.
+
+\textbf{Fuzzy Match} measures approximate string similarity and therefore
+allows partial agreement when the generated and reference responses differ
+slightly in wording.
+
+\textbf{BLEU} evaluates n-gram precision between generated and reference
+responses, while \textbf{ROUGE} measures recall-oriented lexical overlap.
+ROUGE-1, ROUGE-2, and ROUGE-L were used to evaluate unigram, bigram, and
+longest-common-subsequence similarity, respectively.
+
+\textbf{Token F1} computes the harmonic mean of token-level precision and
+recall and therefore provides partial credit when only part of the reference
+answer is reproduced.
+
+\textbf{BERTScore} measures semantic similarity using contextualized token
+representations. It is useful when generated and reference answers convey
+similar meaning using different lexical forms.
+
+Together, these metrics provide complementary views of performance. EM
+reflects exact correspondence, BLEU and ROUGE capture lexical overlap,
+Token F1 measures partial agreement, and BERTScore captures semantic
+similarity. Consequently, the reported results are interpreted collectively
+rather than relying on any single metric.
+
+\subsection{Overall Performance Comparison}
+
+Table~\ref{tab:overall_results} summarizes the performance of all evaluated
+configurations. A clear progression is observed from prompting-based
+baselines toward retrieval-based and hybrid approaches. Zero-shot and
+few-shot settings generally produced the lowest scores, whereas RAG
+substantially improved performance across all three model families. The
+strongest overall results were obtained when retrieval was combined with
+fine-tuning.
+
+\begin{table*}[t]
+\centering
+\caption{Performance Comparison of Different LLM Configurations for Bangla
+Government-Service Question Answering}
+\label{tab:overall_results}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{lcccccc}
+\hline
+\textbf{Model / Configuration} &
+\textbf{EM} &
+\textbf{Fuzzy} &
+\textbf{BLEU} &
+\textbf{ROUGE-L} &
+\textbf{Token F1} &
+\textbf{BERT F1} \\
+\hline
+Llama Zero-Shot           & 0.000 & 0.513 & 0.018 & 0.116 & 0.137 & 0.658 \\
+Llama Few-Shot            & 0.000 & 0.576 & 0.050 & 0.238 & 0.262 & 0.726 \\
+Llama Fine-Tuned          & 0.004 & 0.602 & 0.134 & 0.286 & 0.320 & 0.779 \\
+Llama RAG                 & 0.060 & 0.730 & 0.338 & 0.433 & 0.449 & 0.797 \\
+Llama RAG + Fine-Tuning   & 0.355 & 0.908 & 0.478 & 0.673 & 0.687 & 0.888 \\
+\hline
+Qwen Zero-Shot            & 0.000 & 0.497 & 0.016 & 0.139 & 0.168 & 0.694 \\
+Qwen Few-Shot             & 0.000 & 0.511 & 0.027 & 0.177 & 0.208 & 0.715 \\
+Qwen Few-Shot + CoT       & 0.000 & 0.527 & 0.042 & 0.205 & 0.233 & 0.727 \\
+Qwen RAG                  & 0.169 & 0.881 & 0.412 & 0.622 & 0.654 & 0.856 \\
+Qwen RAG + Fine-Tuning    & \textbf{0.391} & \textbf{0.924} &
+\textbf{0.636} & \textbf{0.771} & \textbf{0.788} &
+\textbf{0.923} \\
+\hline
+Mistral Zero-Shot         & 0.000 & 0.491 & 0.013 & 0.106 & 0.127 & 0.662 \\
+Mistral Few-Shot          & 0.000 & 0.482 & 0.013 & 0.122 & 0.146 & 0.670 \\
+Mistral Few-Shot + CoT    & 0.000 & 0.494 & 0.022 & 0.143 & 0.167 & 0.694 \\
+Mistral RAG               & 0.008 & 0.762 & 0.221 & 0.422 & 0.454 & 0.873 \\
+Mistral RAG + Fine-Tuning & 0.169 & 0.868 & 0.506 & 0.630 & 0.652 & 0.888 \\
+\hline
+\end{tabular}}
+\end{table*}
+
+At the baseline level, all three zero-shot models obtained an EM score of
+0.000, indicating limited ability to reproduce exact reference answers using
+pretrained knowledge alone. Few-shot and CoT prompting produced only modest
+improvements. In contrast, RAG resulted in substantial gains, and the hybrid
+configuration further improved performance.
+
+Among all evaluated configurations, Qwen RAG + Fine-Tuning achieved the
+highest reported scores, including 0.391 EM, 0.924 Fuzzy Match, 0.636 BLEU,
+0.771 ROUGE-L, 0.788 Token F1, and 0.923 BERT F1. Llama and Mistral also
+benefited considerably from the hybrid configuration, indicating that the
+combination of retrieval and domain adaptation consistently improves answer
+quality.
+
+To complement the numerical results in Table~\ref{tab:overall_results},
+Fig.~\ref{fig:multimetric_comparison} visualizes four representative
+metrics---EM, ROUGE-L, Token F1, and BERT F1---for the Zero-shot, RAG,
+and RAG + Fine-Tuning configurations. The figure highlights the progression
+from prompting-only generation to retrieval-grounded and hybrid approaches
+for all three model families.
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=\textwidth]
+    {comp.png}
+    \caption{Multi-metric comparison of representative Llama, Qwen, and
+    Mistral configurations using EM, ROUGE-L, Token F1, and BERT F1.
+    The figure illustrates the performance progression from Zero-shot to
+    RAG and RAG + Fine-Tuning.}
+    \label{fig:multimetric_comparison}
+\end{figure*}
+
+The figure also illustrates that the different evaluation metrics do not
+always move in parallel. For example, some configurations achieve relatively
+high semantic similarity despite low Exact Match performance. This behavior
+is particularly visible for Mistral RAG, which obtains a BERT F1 score of
+0.873 but an EM score of only 0.008. Such differences motivate the use of
+multiple complementary metrics instead of relying on a single performance
+measure.
+
+\subsection{Effect of Prompting, Fine-Tuning, and RAG}
+
+The evaluated adaptation strategies affected model performance in different
+ways. Prompting-based methods provide task demonstrations or reasoning
+instructions without modifying the model parameters or introducing new
+external knowledge. Consequently, zero-shot, few-shot, and CoT configurations
+showed comparatively limited gains, particularly for questions requiring
+specific service-related facts.
+
+Fine-tuning improved domain adaptation by exposing the model to task-specific
+question--answer pairs. For Llama, Token F1 increased from 0.262 under
+few-shot prompting to 0.320 after fine-tuning, while BERT F1 increased from
+0.726 to 0.779. BLEU also increased from 0.050 to 0.134. These gains suggest
+that fine-tuning helps the model learn domain terminology, expected response
+patterns, and task-specific linguistic characteristics.
+
+However, the fine-tuned Llama obtained an EM score of only 0.004. This
+indicates that learning domain patterns through parameter updates alone does
+not guarantee precise reproduction of service-specific facts. Government
+service questions often require exact information related to fees, required
+documents, eligibility conditions, processing details, and procedural steps.
+
+RAG produced a more pronounced improvement because it supplied relevant
+government-service information during inference. Llama RAG increased Token
+F1 to 0.449 and ROUGE-L to 0.433. Qwen RAG achieved 0.169 EM, 0.881
+Fuzzy Match, 0.622 ROUGE-L, 0.654 Token F1, and 0.856 BERT F1. Mistral
+RAG similarly improved to 0.454 Token F1 and 0.873 BERT F1. These results
+show that access to external domain knowledge provides a clear advantage
+over prompting-only configurations.
+
+The hybrid RAG + Fine-Tuning configuration combines the advantages of both
+adaptation mechanisms. Fine-tuning helps the model learn domain-specific
+language and response structure, whereas retrieval supplies relevant factual
+context during generation. This complementary effect is reflected in the
+performance improvements observed across all three model families.
+
+For Llama, the hybrid configuration reached 0.355 EM, 0.673 ROUGE-L,
+0.687 Token F1, and 0.888 BERT F1. Mistral improved to 0.169 EM,
+0.630 ROUGE-L, 0.652 Token F1, and 0.888 BERT F1. Qwen produced the
+strongest hybrid result, with substantial gains over its RAG-only
+configuration. These results indicate that retrieval and fine-tuning address
+different aspects of the task and are more effective when applied together.
+
+\subsection{Cross-Model Comparison}
+
+The three model families also responded differently to the evaluated
+adaptation strategies. Under prompting-only settings, their performance
+remained relatively close, and no large separation was observed among the
+models. More noticeable differences emerged after retrieval was introduced.
+
+Qwen benefited strongly from retrieval and achieved the highest scores across
+the common metrics in the hybrid configuration. Llama also exhibited
+substantial improvements after fine-tuning and retrieval, particularly in EM,
+ROUGE-L, Token F1, and BERT F1. Mistral showed strong semantic similarity in
+retrieval-based settings, although its exact-match performance remained
+lower.
+
+The contrast between Mistral RAG's BERT F1 of 0.873 and EM of 0.008 is a
+clear example of how model evaluation depends on the metric being considered.
+A response may be semantically similar to a reference answer while differing
+in exact wording, numerical values, or specific factual details. Conversely,
+a strong lexical match does not necessarily guarantee that all facts in the
+response are correct.
+
+These observations are particularly important in government-service QA,
+where seemingly small factual differences may change the meaning of an
+answer. Incorrect fees, eligibility conditions, required documents, deadlines,
+or procedural steps can make an otherwise fluent response unreliable for
+practical use.
+
+\subsection{Implications of Evaluation Metrics and Source Verification}
+
+The experimental results expose an important limitation of conventional
+automatic evaluation metrics. EM, BLEU, ROUGE, Token F1, Fuzzy Match, and
+BERTScore capture different aspects of similarity between generated and
+reference answers, but none of these metrics directly guarantees factual
+correctness.
+
+Exact Match is highly restrictive and can assign a score of zero even when
+a generated response conveys relevant information using different wording.
+In contrast, semantic metrics such as BERTScore may assign a relatively high
+similarity score even when a response contains an incorrect number, fee,
+document requirement, or procedural condition. Lexical overlap metrics
+occupy an intermediate position but also remain dependent on the wording of
+the reference answer.
+
+For government-service applications, these limitations are particularly
+important because response reliability depends not only on linguistic
+similarity but also on factual consistency with authoritative information.
+Government policies, fees, procedural requirements, and service instructions
+may also change over time, making temporal freshness an additional concern.
+
+Therefore, the findings support evaluating generated responses using multiple
+automatic metrics while complementing them with source-based verification.
+Fact-sensitive responses should be checked against reliable and up-to-date
+government sources rather than being considered correct solely because they
+achieve high lexical or semantic similarity scores. This source-grounded
+perspective is especially relevant for RAG-based government-service systems,
+where retrieved evidence can provide a direct basis for validating generated
+answers.
+
+Overall, the experimental findings show that retrieval-based grounding is
+critical for improving Bangla government-service question answering, while
+fine-tuning provides additional benefit by adapting models to the target
+domain. Their combination delivers the strongest overall performance across
+the evaluated models. At the same time, the observed differences among
+automatic metrics demonstrate that quantitative similarity scores alone are
+insufficient for establishing answer reliability, reinforcing the importance
+of verification against authoritative and current government information.
 
 \section{Limitations, Reliability, and Deployment Considerations}
 \label{sec:limitations}
 
-% Intentionally left blank.
+Evaluation was confined to four Bangladesh government-service domains: passport and e-passport, National Identification (NID), birth and death registration, and Taxpayer Identification Number (TIN). The dataset contains prepared question--answer pairs derived from the constructed knowledge base rather than naturally collected citizen conversations. Its held-out questions therefore assess answering over the collected information. They may not capture the range of ambiguous or incomplete requests, spelling variation, conversational context, and unexpected phrasing encountered in practical use.
+
+Paraphrased questions were generated from the same service information. Questions associated with related knowledge-base records may consequently remain semantically similar across the training and test sets, even when exact duplicates are excluded. This possibility does not establish that data leakage occurred, but it limits what can be inferred about generalization to unfamiliar intents. A stricter evaluation could group examples by the underlying record, information item, or intent before partitioning the dataset.
+
+Retrieval used the service-domain label supplied with each test question. This restriction kept unrelated service categories out of candidate selection and provided a controlled comparison. A deployed system would ordinarily need to identify the domain from the question or search across the complete knowledge base. Errors at this stage could affect the evidence available to the generator.
+
+Retrieval ranking was evaluated using Hit@1, Hit@3, Hit@5, MRR@5, and nDCG@5. The relevance judgments were derived from reference answers rather than a fully manually annotated passage dataset. These measures provide a useful indication of ranking quality under the adopted relevance definition. Manually annotated passage relevance would provide stronger evidence in future work.
+
+Government information can change after collection, including fees, eligibility rules, required documents, procedures, processing times, and online links. RAG permits updates to the external knowledge base without retraining the generator, but does not guarantee factual correctness. Reliability still depends on current source information, retrieval of the relevant evidence, and generation that neither omits nor misinterprets that evidence or introduces unsupported details. Source URLs and passage metadata support traceability, provided that the collection and its index are maintained.
+
+Exact Match, Fuzzy Match, BLEU, ROUGE, Token F1, and BERTScore measure exact, lexical, or semantic agreement with reference answers. A strong score can coexist with an incorrect fee, document requirement, eligibility condition, processing time, or procedural detail. These measures therefore cannot establish factual reliability on their own.
+
+The approaches also impose different operational requirements. Prompting needs neither generator adaptation nor an external retrieval index. Fine-tuning requires adapting the generator, although QLoRA reduces the memory needed for this process. RAG adds an indexed knowledge base, retrieval, rank fusion, reranking, and evidence construction during inference. Combining RAG with fine-tuning retains both adaptation and retrieval infrastructure, increasing operational complexity relative to prompting or standalone fine-tuning. Citizen-facing use would require regular knowledge-base updates, automatic domain identification or unrestricted retrieval, accessible source information, and a response policy for questions lacking sufficient evidence. Fact-sensitive details would need verification before generated answers were relied upon.
+
+The experiments establish performance within the evaluated Bangla government-service setting. Broader deployment requires assessment on more diverse natural queries, continuously updated authoritative information, and stronger factual validation.
 
 \section{Conclusion and Future Work}
 \label{sec:conclusion}
+This study investigated Bangla government-service question answering
+across three open-weight language model families---Qwen, Llama, and
+Mistral---using prompting, supervised fine-tuning, Retrieval-Augmented
+Generation (RAG), and RAG combined with fine-tuning. A domain-specific
+dataset containing 1,186 question--answer pairs was constructed from
+official government information covering birth and death registration,
+passport and e-passport services, National Identification (NID), and
+Taxpayer Identification Number (TIN) services. A corresponding knowledge
+base was prepared to support retrieval-grounded generation.
+
+The experimental results show a clear advantage for retrieval-based
+approaches over prompting-only configurations. Zero-shot and few-shot
+methods produced comparatively low performance, while RAG substantially
+improved lexical and semantic agreement with the reference answers across
+all three model families. Fine-tuning improved domain-specific response
+patterns, but its effect was more limited when external factual information
+was unavailable. The strongest overall performance was obtained by
+combining retrieval with fine-tuning, indicating that the two approaches
+address complementary aspects of the task: fine-tuning adapts the
+generator to the target domain, whereas retrieval supplies relevant
+government-service information at inference time.
+
+Among the evaluated configurations, Qwen with RAG and fine-tuning achieved
+the best overall result, reaching an Exact Match of 0.391, Fuzzy Match of
+0.924, BLEU of 0.636, ROUGE-L of 0.771, Token F1 of 0.788, and BERT F1 of
+0.923. Llama and Mistral also showed substantial improvements under the
+hybrid configuration, supporting the general benefit of combining
+retrieval grounding with domain adaptation.
+
+At the same time, the results demonstrate that automatic similarity
+metrics alone are insufficient to establish the factual reliability of a
+government-service answer. A response may obtain a high semantic or
+lexical similarity score while still containing an incorrect fee,
+eligibility condition, document requirement, or procedural detail.
+Therefore, practical government-service systems should evaluate generated
+answers together with the retrieved evidence and verify fact-sensitive
+information against authoritative and current government sources.
+
+The present study is limited to four government-service domains and a
+dataset generated from the prepared government knowledge base rather than
+naturally occurring citizen interactions. In addition, the retrieval
+experiments assume that the service domain of each question is already
+known. Future work should therefore evaluate the system on real citizen
+queries, extend the knowledge base to additional public services, and
+introduce automatic service-domain identification. Further work should
+also examine retrieval accuracy directly, incorporate source-based factual
+verification, and study mechanisms for detecting unsupported or outdated
+answers. Human evaluation involving Bangla-speaking users or domain
+experts would provide an additional measure of factual correctness,
+clarity, and practical usefulness beyond automatic text-similarity
+metrics.
+
+Overall, the findings indicate that retrieval-grounded generation combined
+with domain-specific fine-tuning is the most effective strategy among the
+evaluated approaches for Bangla government-service question answering.
+The results also emphasize that strong generation performance should be
+accompanied by reliable retrieval, up-to-date authoritative information,
+and explicit factual verification before such systems are used in
+citizen-facing public-service applications.
+
 
 % Intentionally left blank.
 
