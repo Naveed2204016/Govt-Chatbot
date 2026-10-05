@@ -1,0 +1,82 @@
+﻿Experimental Setup
+
+Computing Environment and Models
+
+All experiments were carried out on Kaggle using an NVIDIA T4 GPU. The evaluated generators were Llama-3.1-8B-Instruct, Qwen2.5-7B-Instruct, and Mistral-7B-Instruct-v0.3. Each model was evaluated with zero-shot prompting, few-shot prompting, few-shot chain-of-thought prompting, supervised fine-tuning, RAG, and RAG combined with fine-tuning.
+
+Prompting and retrieval-based experiments used 4-bit model representations. Pretrained generators were loaded with NF4 quantization and double quantization, with computation in FP16. Fine-tuning used Unsloth with a frozen 4-bit backbone and trainable low-rank adapters.
+
+Dataset and Evaluation Split
+
+The dataset contained 1,186 question-answer pairs, divided into 938 training instances and 248 held-out test instances. Birth and death registration contributed 267 training and 63 test pairs; passport services contributed 249 training and 63 test pairs; NID services contributed 233 training and 74 test pairs; and TIN services contributed 189 training and 48 test pairs.
+
+Training pairs were used for supervised fine-tuning and few-shot demonstrations. All model configurations were evaluated on the same held-out test set, and test reference answers were excluded from inference prompts. Retrieval used the government-service knowledge base described in the Dataset and Knowledge Base section. The question-answer pairs were generated from this knowledge base, so the evaluation concerned held-out questions over the shared source information.
+
+Prompting Configuration
+
+Zero-shot prompts requested concise Bangla answers without demonstrations or retrieved passages. Prompts followed each model's conversational format.
+
+Few-shot prompting used three training examples for each model, sampled according to the service domain of the test question. The examples preceded the test question and illustrated the expected response style.
+
+Few-shot chain-of-thought prompting also used three demonstrations for each model and requested a brief analysis followed by a final answer. Llama demonstrations included a brief analysis and a concise response. Qwen demonstrations presented the reference response under a final-answer heading. Mistral demonstrations included an explanatory rationale and an answer. Evaluation used the final response.
+
+Fine-Tuning Configuration
+
+The three generators shared the following training settings:
+
+Backbone loading: 4-bit, using Unsloth.
+Adaptation method: QLoRA.
+Adapter target layers: Query, key, value, and output projections in attention; gate, up, and down projections in feed-forward layers.
+LoRA rank: 16.
+LoRA scaling parameter, alpha: 16.
+LoRA dropout: 0.
+Trainable bias: None.
+Training epochs: 3.
+Optimizer: 8-bit AdamW.
+Learning rate: 0.0002.
+Per-device batch size: 2.
+Gradient accumulation: 4 steps.
+Effective batch size on one GPU: 8 sequences.
+Learning-rate schedule: Cosine decay.
+Warmup ratio: 0.03.
+Weight decay: 0.01.
+Maximum training sequence length: 1,024 tokens.
+Sequence packing: Enabled.
+Gradient checkpointing: Enabled through Unsloth.
+Random seed: 3407.
+
+The adapter scaling factor, alpha divided by rank, was one. Checkpoints were retained after each epoch. The adapted generators were subsequently evaluated with and without retrieval.
+
+Knowledge-Base Indexing and Retrieval Configuration
+
+The knowledge base was segmented into passages of at most 180 whitespace-delimited words with an overlap of 30 words, producing 1,284 passages across the four domains. Passage representations included the document title, topic, and content. Document identifiers, domain labels, and source URLs were retained as metadata.
+
+Dense retrieval used BGE-M3 (BAAI/bge-m3). Question and passage embeddings were normalized to unit length, and passage embeddings were computed in batches of eight. Search used FAISS IndexFlatIP, an exact inner-product index. With normalized embeddings, inner-product ranking was equivalent to cosine-similarity ranking.
+
+Sparse retrieval used BM25Okapi with its default parameters. Preprocessing applied Unicode NFKC normalization, converted Bangla digits to Latin digits, and lowercased Latin characters. Tokenization preserved Bangla character sequences, English words, and numerical expressions.
+
+Each test question supplied a service-domain label. Dense and sparse retrieval each contributed up to 100 passages from that domain. Reciprocal rank fusion combined the rankings with equal weight and a fusion constant of 60. A passage's contribution from each list was one divided by the sum of 60 and its rank, with ranks beginning at one. Contributions were summed across lists, and the top 25 passages were retained for reranking.
+
+Reranking used BGE-reranker-v2-m3 (BAAI/bge-reranker-v2-m3), with a batch size of four and a maximum question-passage pair length of 512 tokens. The five highest-scoring passages were supplied to the generator. For each question, these passages were kept identical across models and between the RAG and RAG-with-fine-tuning settings.
+
+Inference Configuration
+
+Llama and Mistral prompting experiments used greedy decoding, a repetition penalty of 1.05, and an output limit of 500 tokens. Qwen prompting also used greedy decoding, with an initial output limit of 512 tokens. Responses reaching that limit were regenerated with a larger budget, up to 4,096 tokens for zero-shot prompting and 1,024 tokens for few-shot prompting.
+
+RAG and RAG combined with fine-tuning used greedy decoding, a repetition penalty of 1.05, and an input limit of 7,000 tokens. Qwen RAG used an output limit of 450 tokens; the other retrieval-based configurations used 500 tokens. Standalone fine-tuned Llama and Qwen used output limits of 500 and 256 tokens, respectively.
+
+The generation budgets therefore differed across some configurations. These differences should be considered when interpreting comparisons, since output length and truncation can affect reference-based scores.
+
+Evaluation Measures
+
+Generated answers were compared with held-out reference answers using Exact Match, fuzzy matching, BLEU, ROUGE-1, ROUGE-2, ROUGE-L, Token F1, and multilingual BERTScore. These measures captured exact agreement, lexical overlap, and contextual semantic similarity.
+
+For retrieval-based evaluation, text normalization applied Unicode NFKC normalization, Bangla-to-Latin digit conversion, lowercasing, punctuation removal, and whitespace standardization.
+
+Exact Match measured complete agreement between the prediction and reference after the applicable preprocessing. Fuzzy matching used the token-set similarity ratio. Token F1 measured the harmonic mean of token precision and recall, counting repeated token occurrences when computing overlap.
+
+Corpus BLEU was calculated with SacreBLEU using exponential smoothing and effective order. ROUGE-1 measured unigram overlap, ROUGE-2 measured bigram overlap, and ROUGE-L measured overlap based on the longest common subsequence.
+
+BERTScore used bert-base-multilingual-cased, with IDF weighting and baseline rescaling disabled. It complemented lexical measures by comparing contextual token representations.
+
+These automatic measures assessed agreement with reference answers. They did not independently verify the factual correctness or currency of government-service information.

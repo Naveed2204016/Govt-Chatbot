@@ -1,0 +1,34 @@
+﻿III. DATASET
+
+We constructed a Bangla question answering dataset and a new knowledge base covering four public service domains in Bangladesh: passport and e-passport services, National Identity (NID) services, birth and death registration, and Taxpayer Identification Number (TIN) services. Information was collected by crawling official government websites. The knowledge base was prepared first, and question and answer pairs were then generated from its contents. This provided a common source of information for studying prompting, fine-tuning, retrieval-augmented generation (RAG), and their combination.
+
+The selected domains cover several kinds of administrative questions. Passport queries concern applications, renewals, supporting documents, fees, and delivery periods. NID queries include registration, correction of personal information, replacement, and smart card services. Birth and death registration form the civil registration domain, which contains information about registration procedures, certificates, and corrections. The TIN domain covers taxpayer registration and related services. Across these domains, an answer may require a short factual statement, a list of documents, or a sequence of application steps.
+
+The collected webpages contained service information alongside navigation menus and other material that was not needed for question answering. We processed the extracted content to retain the relevant information and used GPT-5 to assist in organizing it by domain. The resulting knowledge base was stored as an array of JSON objects. Records included the service information, source details, and keywords, with metadata such as document identifier, domain, topic, and title. Retaining the source URL allowed the information in a record to be traced to its government website.
+
+[INSERT FIGURE 1 HERE: Data preparation workflow. Show official government websites, crawling and content preparation, the four domain knowledge bases, QA generation, and the training and test partitions. Show a separate branch from the knowledge base to the retrieval index.]
+
+FIGURE 1. Construction of the government service knowledge base and question answering dataset.
+
+After preparing the knowledge base, we prompted GPT-5 to generate questions and reference answers from the collected information. The instructions requested coverage of the available service details, including eligibility, required documents, application procedures, fees, corrections, and processing times. We also requested paraphrased questions to represent different ways of asking for the same information. The answers were generated from the knowledge base. Thus, the dataset consists of questions prepared for this study, rather than queries collected from citizen interactions.
+
+Each QA record contains an instruction field for the question, an input field for additional context where available, and an output field for the reference answer. Supporting fields identify the domain and source, with further metadata where provided. The questions include Bangla script as well as variations containing English administrative terms and romanized Bangla. This variation reflects the language forms represented in the prepared dataset. Figure 2 provides space for examples from the four domains and their corresponding knowledge base records.
+
+[INSERT FIGURE 2 HERE: Examples taken directly from the stored dataset. Include one question and reference answer from each domain, with the corresponding source URL. Alongside one example, show the structure of its knowledge base record. Preserve the original wording.]
+
+FIGURE 2. Examples and record structure of the Bangla government service dataset.
+
+The final dataset contains 1,186 question and answer pairs. Of these, 938 were assigned to training and 248 to testing. Table I presents the distribution by service domain. Birth and death registration accounts for 330 pairs, followed by passport services with 312, NID services with 307, and TIN services with 237. These figures describe the prepared dataset; they do not represent the frequency of citizen requests for each service.
+
+TABLE I. Distribution of question and answer pairs across the training and test sets.
+
+Domain                         Training    Test    Total
+Birth and death registration        267      63      330
+Passport and e-passport              249      63      312
+NID                                 233      74      307
+TIN                                 189      48      237
+Total                               938     248    1,186
+
+The resources served different purposes in the experiments. Fine-tuning used the 938 training pairs to adapt the generators to the task. Prompting experiments used the test questions, with training examples supplied as demonstrations where applicable. RAG retrieved passages from the government service knowledge base, while the combined approach used those passages with a generator adapted on the training pairs. All configurations were evaluated on the same 248 test questions, and their reference answers were withheld from the inference prompts.
+
+The knowledge base remained available to the retrieval systems during evaluation. Since the QA pairs were generated from this collection, the test set measures performance on held-out questions about the collected information. The following section describes how the models and retrieval components were configured for these comparisons.

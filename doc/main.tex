@@ -1,0 +1,357 @@
+\documentclass[10pt,journal,compsoc]{IEEEtran}
+
+\ifCLASSOPTIONcompsoc
+  \usepackage[nocompress]{cite}
+\else
+  \usepackage{cite}
+\fi
+
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{url}
+
+\hyphenation{op-tical net-works semi-conduc-tor}
+
+\begin{document}
+
+\title{JOURNAL}
+
+\author{Author~One, Author~Two, Author~Three%
+\IEEEcompsocitemizethanks{
+\IEEEcompsocthanksitem Author affiliations go here.
+\protect\\
+E-mail: author@example.com
+}
+}
+
+\markboth{IEEE Journal Submission Draft}%
+{Author \MakeLowercase{\textit{et al.}}: Bengali Government-Service Question Answering}
+
+\IEEEtitleabstractindextext{%
+\begin{abstract}
+% Write your abstract here.
+\end{abstract}
+
+\begin{IEEEkeywords}
+% Add IEEE index terms / keywords here.
+\end{IEEEkeywords}}
+
+\maketitle
+
+\IEEEdisplaynontitleabstractindextext
+\IEEEpeerreviewmaketitle
+\section{Introduction}
+\label{sec:introduction}
+
+The growing use of digital technologies in government services has changed how citizens obtain administrative information and communicate with public institutions. Information about services such as birth and death registration, National Identification (NID), passport and e-passport applications, and Taxpayer Identification Number (TIN) registration is now widely available online. However, users may still need to navigate multiple webpages to find information about procedures, required documents, fees, eligibility criteria, processing times, and other service requirements. Conversational artificial intelligence (AI) can make this information easier to access by allowing users to ask questions in everyday language rather than searching through several government websites. For this reason, chatbots and conversational systems are becoming increasingly relevant to digital government and public-service delivery~\cite{cortes2023egov}.
+
+Recent developments in large language models (LLMs) have improved the ability of conversational systems to understand natural-language queries and generate relevant responses. Modern generative models can perform tasks such as question answering, summarization, instruction following, and multilingual generation with relatively little task-specific engineering. Using these models for government-service question answering, however, raises concerns about the reliability of their responses. Since LLMs mainly depend on knowledge acquired during training, they may provide information that appears reliable but is incorrect, incomplete, outdated, or unsupported. In public-service applications, such errors can have practical consequences for citizens.
+
+These challenges become more significant when services are provided in Bangla. Bangla has a large number of speakers, but it is still less represented in NLP resources and pretrained language models. Recent studies have explored Bangla-specific language models and instruction datasets to address this gap. For instance, BanglaLlama demonstrates that instruction tuning with Bangla data can improve LLM performance on Bangla-language tasks~\cite {zehady-etal-2026-banglallama}.
+
+Government-service question answering requires more than general Bangla language understanding. User queries may include Bangla script, English administrative terms, numerical information, dates, fees, document names, and URLs. An effective system should be able to handle these different language patterns while providing accurate answers based on reliable government information. Several strategies can be used to adapt general-purpose LLMs to this domain. Prompt-based approaches, including zero-shot, few-shot, and chain-of-thought prompting, can guide model responses without changing model parameters. Supervised fine-tuning can further adapt a model to the language patterns, terminology, and response structure of government-service questions. Fine-tuning alone does not fully address the problem of knowledge freshness. Government procedures, fees, eligibility requirements, and online resources can change over time, while updating information stored in model parameters generally requires additional training. A system that relies only on parametric knowledge may therefore become outdated even when its language-generation capabilities remain strong.
+
+Retrieval-Augmented Generation (RAG) offers a practical way to address this limitation. Rather than relying solely on information stored in model parameters, a RAG system retrieves relevant documents or passages from an external knowledge source and provides them to the language model as context before generating an answer~\cite{lewis2020rag}. This approach is particularly suitable for government-service applications because the knowledge base can be updated independently of the generative model. When a government procedure, fee, requirement, or online resource changes, the external knowledge source can be updated without retraining the entire LLM. Retrieval can also connect generated answers to their supporting sources, which can improve transparency and trust in citizen-facing systems.
+
+This study investigates different LLM adaptation strategies for Bangla government-service question answering. For this purpose, we developed a domain-specific question--answer dataset covering four government-service categories in Bangladesh: birth and death registration, passport and e-passport services, National Identity services, and TIN-related services. The dataset contains 1,186 question--answer instances, including 938 training samples and 248 test samples. We also prepared domain-specific knowledge bases to support retrieval-based question answering. We evaluated different model families, including Llama, Qwen, Mistral, and Bangla-focused language models. The models were evaluated under different configurations, including zero-shot, few-shot, and chain-of-thought prompting, supervised fine-tuning, RAG, and a combination of RAG and fine-tuning.
+The main aim of this study is to examine whether using external government-service information improves answer quality compared with prompting and supervised fine-tuning alone. We also investigate whether combining retrieval with domain-specific fine-tuning provides further improvements. To compare these approaches, we use several evaluation metrics, including Exact Match, fuzzy matching, BLEU, ROUGE, Token F1, and BERTScore. The experimental results show that prompting-only methods generally perform worse than retrieval-based approaches for government-service question answering. Among the evaluated methods, RAG combined with supervised fine-tuning gives the best overall results. This shows that using retrieved information together with domain-specific training can help improve the quality of answers.
+
+The main contributions of this work are as follows:
+\begin{itemize}
+    \item We focus on Bangla question answering for four government-service domains in Bangladesh: birth and death registration, passport and e-passport services, National Identity services, and TIN services.
+
+    \item We develop a domain-specific question--answer dataset and prepare knowledge bases that support both supervised fine-tuning and RAG.
+
+    \item We compare different approaches, including zero-shot, few-shot, and chain-of-thought prompting, supervised fine-tuning, RAG, and RAG combined with fine-tuning across different model families.
+
+    \item We identify the limitations of traditional evaluation metrics and emphasize the need to verify answers using reliable and up-to-date government sources.
+\end{itemize}
+The rest of the paper is organized as follows. Section~\ref{sec:Related_work} reviews previous work on Bangla language models, government-service conversational systems, LLM adaptation, and retrieval-augmented generation. Section~\ref{sec:Dataset and Knowledge Base} describes the dataset and the process used to build the knowledge base. Section~\ref{sec:Proposed Methodology} presents the methodology and experimental configurations. Section~\ref{sec:Experimental Setup} details the experimental setup and evaluation metrics, while Section~\ref{sec:Results And Dis} presents and discusses the results. Section~\ref{sec:limitations} covers the limitations, reliability concerns, and practical aspects of deployment. Finally, Section~\ref{sec:conclusion} concludes the paper with a summary of the main findings and possible directions for future research.
+
+
+\section{Related Work}
+\label{sec:Related_work}
+       The growing use of large language models (LLMs) is creating new ways to provide public information. They can make access to government services easier through conversational systems. In e-government applications, these models can assist users by making complex administrative information easier to access and understand through natural language interactions. However, their effective use in real-world public-service settings largely depends on their ability to provide responses that are accurate, relevant, and grounded in reliable domain-specific information.Research on LLM-based digital-government systems has started to address these challenges.
+       
+     Gao \textit{et al.} \cite{gao2023digitalgovernment} investigated the use of LLMs for intelligent question answering in digital-government applications, focusing on user-intent recognition, conversational context, and complex questions. Their work demonstrates the potential of combining the contextual capabilities of LLMs with conventional information-retrieval mechanisms. Similarly, Mamalis \textit{et al.} \cite{mamalis2024opengovernment} explored the integration of GPT-3.5 with the Scottish open-statistics portal. Their study was motivated by the tendency of standalone LLMs to generate factually incorrect information and demonstrated how authoritative government data can be connected to an LLM-based natural-language interface. These studies indicate that the usefulness of LLMs in public-service applications depends not only on fluent response generation but also on their ability to access reliable domain-specific information.
+
+The need for external grounding is closely related to the limitations of parametric knowledge in language models. Roberts \textit{et al.} \cite{roberts2020knowledge} investigated how much factual knowledge could be stored within the parameters of pretrained language models. Their findings showed that larger models can answer a considerable number of factual questions using internalized knowledge alone. However, such closed-book approaches depend entirely on information acquired during pretraining and do not provide direct access to updated external evidence. This limitation is particularly important for government-service applications, where fees, application procedures, eligibility requirements, required documents, and other administrative information may change over time.
+
+Retrieval-Augmented Generation (RAG) provides an important approach to addressing this limitation. Lewis \textit{et al.} \cite{lewis2020rag} introduced the RAG framework by combining parametric knowledge stored in a pretrained sequence-to-sequence model with non-parametric knowledge retrieved from an external document collection. Rather than requiring the generator to rely solely on information encoded within its parameters, a retrieval component first identifies relevant documents or passages and provides them as contextual evidence during response generation. Their results demonstrated the effectiveness of retrieval augmentation for knowledge-intensive natural-language processing tasks and established RAG as a foundation for systems requiring access to external and updatable knowledge.
+
+Several recent studies have applied retrieval-augmented approaches specifically to government and public-service environments. Pujiono  \textit{et al.}  \cite{pujiono2024rag} looked at how to combine RAG, vector databases, and large language models for chatbot use in public-service agencies. Their method first retrieves relevant regulatory and service-related information before creating a response. This helps make the answers more accurate and based on data.
+
+Papageorgiou \textit{et al.} \cite{papageorgiou2024egovernment} proposed a modular and reproducible LLM-based architecture for e-government services that combines RAG with external knowledge sources. The architecture uses structured retrieval components to support scalability and improve the reliability of government-service conversational systems.
+
+
+More recently, Jiang \textit{et al.} \cite{jiang2025argus} introduced ARGUS, a retrieval-augmented question-answering system for government services. It uses domain adaptation and hybrid retrieval to improve the factual grounding of LLM-generated responses. Their approach combines multiple retrieval techniques rather than relying on a single vector-search mechanism and evaluates the resulting system using both conventional question-answering metrics and retrieval-oriented evaluation measures. This work highlights that the performance of a government-service chatbot depends not only on the underlying language model but also on the quality of the retrieval mechanism and the domain knowledge supplied to the model.
+
+In addition to retrieval, supervised fine-tuning has been widely studied as a method for adapting general-purpose LLMs to specific tasks and domains. Fine-tuning enables a model to learn domain-specific vocabulary, response patterns, and task behavior from specialized training examples. However, retrieval and fine-tuning address different aspects of model adaptation. Ovadia \textit{et al.} \cite{ovadia2024finetuning} compared fine-tuning and retrieval-based approaches for injecting knowledge into LLMs. Their experiments showed that retrieval augmentation can provide substantial advantages for knowledge-intensive tasks, particularly when models need access to newly introduced information that may not have been represented during training.
+
+Alghisi \textit{et al.} \cite{alghisi2024finetunerag} further compared several LLM adaptation strategies, including in-context learning, fine-tuning, RAG, and knowledge grounding. Their experiments, involving models such as Llama-2 and Mistral, showed that the effectiveness of each adaptation method varies depending on the model and the task. Consequently, no single strategy can be assumed to perform best across all conversational settings. These findings support fair comparisons of adaptation strategies under the same experimental conditions.
+
+Recent studies have also examined the use of retrieval together with fine-tuning. Lawton \textit{et al.} \cite{lawton2025ragfinetuning} explored independent, joint, and multi-stage fine-tuning approaches within RAG pipelines. Their findings show that retrieval and fine-tuning can be combined through different strategies. These strategies differ in both computational requirements and model performance. This is especially relevant for domain-specific question answering because fine-tuning can improve task-specific response behavior, while retrieval provides access to external factual information. Therefore, RAG and fine-tuning need not be considered mutually exclusive strategies.
+
+Another important consideration is the choice of the underlying language model. Recent open-weight model families, including Mistral, Qwen, and Llama, provide strong alternatives for developing domain-specific conversational systems. Jiang \textit{et al.} \cite{jiang2023mistral} introduced Mistral 7B, an efficient seven-billion-parameter model incorporating grouped-query attention and sliding-window attention. Their experiments demonstrated that relatively compact models can achieve competitive performance compared with substantially larger architectures. Yang \textit{et al.} \cite{yang2024qwen2} introduced Qwen2, a multilingual LLM family covering different parameter scales and supporting language understanding, generation, reasoning, mathematics, coding, and instruction-following tasks. Its multilingual capabilities make the model particularly relevant to applications involving languages other than English.
+
+Grattafiori \textit{et al.} \cite{grattafiori2024llama3} introduced the Llama 3 family of open-weight foundation models for general-purpose language understanding, multilingual generation, reasoning, coding, and instruction following. Llama models have subsequently become widely used as open-weight baselines for downstream LLM applications. Collectively, Qwen, Mistral, and Llama provide suitable model families for controlled comparisons of domain-specific question-answering systems. However, their original evaluations primarily focus on general-purpose benchmarks rather than Bangla government-service question answering.
+
+The performance of these models on Bangla cannot be inferred directly from their results on English and other high-resource languages. Bangla remains comparatively under-resourced in terms of high-quality question-answering datasets and comprehensive benchmarks. Aurpa \textit{et al.} \cite{aurpa2022banglaqa} investigated reading-comprehension-based question answering in Bangla using recurrent and transformer-based architectures. Their results demonstrated considerable improvements from transformer-based approaches over recurrent models, illustrating the potential of pretrained transformers for Bangla question answering. Nevertheless, their study primarily focused on reading comprehension rather than generative and retrieval-augmented question answering.
+
+Ekram \textit{et al.} \cite{ekram2022banglarqa} introduced BanglaRQA, a Bangla reading-comprehension benchmark developed to address the limited availability of comprehensive resources for Bangla question answering. Their experiments with transformer-based models demonstrated substantial differences in performance across models and question categories. These findings suggest that aggregate scores may not fully reflect model performance. Performance can vary across different types of Bangla questions.
+
+Kabir  \textit{et al.} \cite{kabir2024benllm} examined the limitations of general-purpose LLMs for Bengali NLP using the BenLLM-Eval benchmark. The study evaluated several LLMs on tasks such as question answering, summarization, paraphrasing, classification, natural language inference, and sentiment analysis. The results showed clear differences across models and tasks. A model that performs well in general settings may not perform equally well on Bengali NLP tasks. This finding supports the need for task-specific evaluation when applying LLMs to Bangla government-service applications.
+
+Chang  \textit{et al.} \cite{chang2024llmevaluation}  provided a broad survey of LLM evaluation. They showed that model performance should be assessed from several perspectives instead of using only one metric. Common metrics such as Exact Match, F1-score, BLEU, and ROUGE measure different forms of text similarity. However, they do not always show whether an answer is factually correct or supported by the retrieved evidence. This is especially important in government-service applications. A response may look similar to the reference answer but still contain wrong information about fees, procedures, required documents, or eligibility rules.
+This limitation becomes particularly important in government-service applications, where an answer may be linguistically similar to a reference while still containing an incorrect fee, procedure, required document, or eligibility condition.
+Existing literature therefore points to three connected research directions. One important direction in e-government research is ensuring that responses generated by language models are grounded in reliable and authoritative information sources. Another direction concerns the comparison of retrieval-based and fine-tuning approaches, with existing studies showing that their effectiveness depends on the specific task and the model being used. A further direction is evident in Bangla question-answering research, where transformer-based models have shown promising progress while challenges remain in low-resource language understanding and performance evaluation.
+
+Despite these developments, limited research has jointly investigated these issues in a controlled Bangla government-service setting. Existing government-oriented LLM studies have primarily considered English or other comparatively high-resource languages, specific system architectures, or individual retrieval strategies. In contrast, existing Bangla question-answering research has largely concentrated on reading comprehension and general Bengali NLP benchmarks rather than retrieval-grounded government-service conversations. Furthermore, comparative studies of prompting, supervised fine-tuning, RAG, and their combination remain limited for Bangla administrative information.
+
+These limitations motivate a controlled comparison of prompting, supervised fine-tuning, RAG, and hybrid adaptation for Bangla government-service question answering. Unlike earlier work, this study evaluates these strategies across multiple open-weight model families using the same domain-specific dataset and evaluation setting.
+\section{Dataset}
+\label{sec:dataset}
+\label{sec:Dataset and Knowledge Base}
+
+We constructed a Bangla question answering dataset and a new knowledge base covering four public service domains in Bangladesh: passport and e-passport services, National Identity (NID) services, birth and death registration, and Taxpayer Identification Number (TIN) services. Information was collected by crawling official government websites~\cite{gov_epassport,gov_nid,gov_bdris,gov_tin}. The knowledge base was prepared first, and question and answer pairs were then generated from its contents. This provided a common source of information for studying prompting, fine-tuning, retrieval-augmented generation (RAG), and their combination.
+
+The selected domains cover several kinds of administrative questions. Passport queries concern applications, renewals, supporting documents, fees, and delivery periods. NID queries include registration, correction of personal information, replacement, and smart card services. Birth and death registration form the civil registration domain, which contains information about registration procedures, certificates, and corrections. The TIN domain covers taxpayer registration and related services. Across these domains, an answer may require a short factual statement, a list of documents, or a sequence of application steps.
+
+The collected webpages contained service information alongside navigation menus and other material that was not needed for question answering. We processed the extracted content to retain the relevant information and used GPT-5~\cite{openai2025gpt5} to assist in organizing it by domain. The resulting knowledge base was stored as an array of JSON objects. Records included the service information, source details, and keywords, with metadata such as document identifier, domain, topic, and title. Retaining the source URL allowed the information in a record to be traced to its government website.
+
+% Figure content: Data preparation workflow. Show official government websites, crawling and content preparation, the four domain knowledge bases, QA generation, and the training and test partitions. Show a separate branch from the knowledge base to the retrieval index.
+\begin{figure}[!t]
+\centering
+% Replace the box below with \includegraphics[width=\columnwidth]{your_figure_file}.
+\fbox{\parbox[c][1.15in][c]{0.94\columnwidth}{\centering Figure placeholder}}
+\caption{Construction of the government service knowledge base and question answering dataset.}
+\label{fig:data_preparation}
+\end{figure}
+
+After preparing the knowledge base, we prompted GPT-5 to generate questions and reference answers from the collected information. The instructions requested coverage of the available service details, including eligibility, required documents, application procedures, fees, corrections, and processing times. We also requested paraphrased questions to represent different ways of asking for the same information. The answers were generated from the knowledge base. Thus, the dataset consists of questions prepared for this study, rather than queries collected from citizen interactions.
+
+Each QA record contains an instruction field for the question, an input field for additional context where available, and an output field for the reference answer. Supporting fields identify the domain and source, with further metadata where provided. The questions include Bangla script as well as variations containing English administrative terms and romanized Bangla. This variation reflects the language forms represented in the prepared dataset. Figure~\ref{fig:dataset_examples} illustrates examples from the four domains and their corresponding knowledge base records.
+
+% Figure content: Examples taken directly from the stored dataset. Include one question and reference answer from each domain, with the corresponding source URL. Alongside one example, show the structure of its knowledge base record. Preserve the original wording.
+\begin{figure}[!t]
+\centering
+% Replace the box below with \includegraphics[width=\columnwidth]{your_figure_file}.
+\fbox{\parbox[c][1.15in][c]{0.94\columnwidth}{\centering Figure placeholder}}
+\caption{Examples and record structure of the Bangla government service dataset.}
+\label{fig:dataset_examples}
+\end{figure}
+
+The final dataset contains 1,186 question and answer pairs. Of these, 938 were assigned to training and 248 to testing. Table~\ref{tab:dataset_summary} presents the distribution by service domain. Birth and death registration accounts for 330 pairs, followed by passport services with 312, NID services with 307, and TIN services with 237. These figures describe the prepared dataset; they do not represent the frequency of citizen requests for each service.
+
+\begin{table}[!t]
+\centering
+\caption{Distribution of question and answer pairs across the training and test sets.}
+\label{tab:dataset_summary}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.1}
+\begin{tabular}{lrrr}
+\hline
+\textbf{Domain} & \textbf{Train} & \textbf{Test} & \textbf{Total} \\
+\hline
+Birth and death registration & 267 & 63 & 330 \\
+Passport and e-passport & 249 & 63 & 312 \\
+NID & 233 & 74 & 307 \\
+TIN & 189 & 48 & 237 \\
+\hline
+\textbf{Total} & \textbf{938} & \textbf{248} & \textbf{1,186} \\
+\hline
+\end{tabular}
+\end{table}
+
+The resources served different purposes in the experiments. Fine-tuning used the 938 training pairs to adapt the generators to the task. Prompting experiments used the test questions, with training examples supplied as demonstrations where applicable. RAG retrieved passages from the government service knowledge base, while the combined approach used those passages with a generator adapted on the training pairs. All configurations were evaluated on the same 248 test questions, and their reference answers were withheld from the inference prompts.
+
+The knowledge base remained available to the retrieval systems during evaluation. Since the QA pairs were generated from this collection, the test set measures performance on held-out questions about the collected information. The following section describes how the models and retrieval components were configured for these comparisons.
+
+\section{Experiments}
+\label{sec:experiments}
+% Compatibility labels preserve existing introduction cross-references.
+\label{sec:Proposed Methodology}
+\label{sec:Experimental Setup}
+
+We evaluated prompting, supervised fine-tuning, retrieval-augmented generation (RAG), and RAG combined with fine-tuning for Bangla government service question answering. The experiments used Qwen2.5-7B-Instruct~\cite{yang2024qwen25}, Llama-3.1-8B-Instruct~\cite{grattafiori2024llama3}, and Mistral-7B-Instruct-v0.3~\cite{jiang2023mistral} as answer generators. Each model was assessed on the same 248 test questions described in Section~\ref{sec:dataset}. The comparison examined whether task-specific training, retrieved information, or their combination improved agreement with the reference answers.
+
+All experiments were carried out on Kaggle using an NVIDIA T4 GPU. Prompting and retrieval-based inference used 4-bit model representations. The pretrained generators were loaded with NF4 quantization, double quantization, and FP16 computation~\cite{meth_dettmers2023qlora}. Fine-tuning was performed with Unsloth~\cite{meth_unsloth2023}. BGE-M3 served as the dense retrieval encoder, and BGE-reranker-v2-m3 was used to reorder retrieved passages. These retrieval components were kept fixed when the generators were fine-tuned.
+
+% Figure content: Overview of the four experiments. Show prompting with optional demonstrations; training pairs leading to a fine-tuned generator; a knowledge base feeding the retrieval pipeline and pretrained generator; and the same retrieval pipeline feeding the fine-tuned generator. All four branches should end in an answer to a test question.
+\begin{figure}[!t]
+\centering
+% Replace the box below with \includegraphics[width=\columnwidth]{your_figure_file}.
+\fbox{\parbox[c][1.15in][c]{0.94\columnwidth}{\centering Figure placeholder}}
+\caption{Experimental configurations for prompting, fine-tuning, RAG, and RAG combined with fine-tuning.}
+\label{fig:experiments}
+\end{figure}
+
+\subsection{Experiment 1: Prompting}
+\label{exp:1}
+
+This experiment evaluated the instruction-tuned models without additional training or external retrieval. We used zero-shot prompting, few-shot prompting, and few-shot chain-of-thought prompting. The prompts followed each model's conversational format and requested answers in Bangla.
+
+\subsubsection{Zero-Shot Prompting}
+
+The model received an instruction and a test question without example answers. The instruction requested a concise response that addressed the information sought in the question, such as a fee, required document, or application procedure. This setting provided a baseline for answering from the model's existing knowledge.
+
+\subsubsection{Few-Shot Prompting}
+
+Few-shot prompting used three example questions and answers~\cite{meth_brown2020fewshot} to establish the expected response format. For each service domain, three pairs were sampled from the training set using random seed 42, after removing duplicate questions and normalized exact matches with test questions. The selected examples were placed before each test question from the corresponding domain and remained fixed throughout the experiment. Qwen, Llama, and Mistral received the same examples in the same order, formatted according to their respective conversational templates. This arrangement provided a common set of demonstrations for comparing the three models.
+
+\subsubsection{Few-Shot Chain-of-Thought Prompting}
+
+The chain-of-thought setting~\cite{meth_wei2022cot} extended the same three-shot procedure by including a brief explanatory rationale before the answer in each demonstration. The selected questions, reference answers, and example order were shared across the three models. Each model was instructed to provide a brief analysis followed by a concise final answer in Bangla. The final response was used for scoring.
+
+Llama and Mistral prompting used greedy decoding, a repetition penalty of 1.05, and a maximum of 500 generated tokens. Qwen also used greedy decoding, beginning with an output budget of 512 tokens. Responses that reached the limit were regenerated with larger budgets, up to 4,096 tokens for zero-shot prompting and 1,024 tokens for the few-shot settings.
+
+\subsection{Experiment 2: Fine-Tuning}
+\label{exp:2}
+
+The second experiment adapted each generator to the training QA pairs and evaluated it without retrieved passages. Training used the same 938 examples across the three models. The purpose was to assess the effect of learning the terminology and answer patterns of the selected government services.
+
+% Figure content: Fine-tuning process. Show training QA pairs, conversation formatting, a frozen quantized generator with trainable LoRA adapters, optimization, and evaluation on the test questions.
+\begin{figure}[!t]
+\centering
+% Replace the box below with \includegraphics[width=\columnwidth]{your_figure_file}.
+\fbox{\parbox[c][1.15in][c]{0.94\columnwidth}{\centering Figure placeholder}}
+\caption{QLoRA fine-tuning of the answer generators.}
+\label{fig:qlora_training}
+\end{figure}
+
+\subsubsection{Training Data Representation}
+
+Each training example was formatted as a conversation containing a system instruction, a user question, and the reference answer. Additional input accompanied the question where available. The conversation followed the corresponding model's instruction format, and training used an autoregressive language-modeling objective. Sequences were packed with a maximum training length of 1,024 tokens.
+
+\subsubsection{Model Configuration}
+
+We applied quantized low-rank adaptation (QLoRA)~\cite{meth_dettmers2023qlora} to train the generators within the available GPU resources. The backbone weights remained frozen in 4-bit form. Trainable adapters~\cite{meth_hu2022lora} were added to the query, key, value, and output projections of the attention layers, as well as the gate, up, and down projections of the feed-forward layers. The adapter rank and scaling parameter were both set to 16, giving an alpha-to-rank ratio of one. Adapter dropout was zero, and no bias parameters were trained.
+
+\subsubsection{Model Training}
+
+Each model was trained for three epochs using 8-bit AdamW~\cite{meth_loshchilov2019adamw} with a learning rate of 0.0002. A per-device batch size of two and four gradient accumulation steps gave an effective batch size of eight sequences on one GPU. The learning rate followed a cosine schedule, with a warmup ratio of 0.03 and weight decay of 0.01. Unsloth gradient checkpointing was enabled, and the training seed was 3407. Checkpoints were retained after each epoch. Table~\ref{tab:finetuning_settings} summarizes the shared settings.
+
+\begin{table}[!t]
+\centering
+\caption{Fine-tuning configuration used for the three generators.}
+\label{tab:finetuning_settings}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.1}
+\begin{tabular}{p{0.43\columnwidth}p{0.49\columnwidth}}
+\hline
+\textbf{Parameter} & \textbf{Setting} \\
+\hline
+Adaptation & QLoRA, frozen 4-bit backbone \\
+LoRA rank / alpha & 16 / 16 \\
+LoRA dropout / bias & 0 / none \\
+Epochs & 3 \\
+Optimizer & 8-bit AdamW \\
+Learning rate & 0.0002 \\
+Per-device batch size & 2 \\
+Gradient accumulation & 4 steps \\
+Effective batch size & 8 sequences \\
+Learning-rate schedule & Cosine \\
+Warmup ratio & 0.03 \\
+Weight decay & 0.01 \\
+Maximum sequence length & 1,024 tokens \\
+Sequence packing & Enabled \\
+Gradient checkpointing & Unsloth \\
+Random seed & 3407 \\
+\hline
+\end{tabular}
+\end{table}
+
+The fine-tuned generators then answered the test questions without access to the retrieval index. The output limit was 500 tokens for Llama and 256 tokens for Qwen and Mistral.
+
+\subsection{Experiment 3: RAG}
+\label{exp:3}
+
+The third experiment supplied external evidence to each pretrained generator without domain-specific fine-tuning. The retrieval pipeline combined dense and sparse search, fused their rankings, and reranked the resulting candidates before constructing the generation prompt.
+
+% Figure content: Hybrid retrieval process. Show a question and supplied domain label entering BGE-M3 dense retrieval and BM25 sparse retrieval in parallel. Each contributes up to 100 passages. Show reciprocal rank fusion, the top 25 candidates, BGE reranking, the top five passages, and answer generation.
+\begin{figure}[!t]
+\centering
+% Replace the box below with \includegraphics[width=\columnwidth]{your_figure_file}.
+\fbox{\parbox[c][1.15in][c]{0.94\columnwidth}{\centering Figure placeholder}}
+\caption{Hybrid retrieval and reranking for government service question answering.}
+\label{fig:hybrid_retrieval}
+\end{figure}
+
+\subsubsection{Knowledge Base Preparation and Indexing}
+
+Knowledge base records were divided into passages of at most 180 whitespace-delimited words, with an overlap of 30 words between adjacent passages. This produced 1,284 passages across the four domains. The indexed representation incorporated the title, topic, and passage content. Document identifiers, domain labels, and source URLs were retained as metadata.
+
+Dense representations were generated with BGE-M3 (BAAI/bge-m3)~\cite{meth_chen2024bgem3}, using batches of eight passages. Both question and passage embeddings were normalized to unit length. The passage vectors were stored in a FAISS IndexFlatIP index~\cite{meth_johnson2019faiss}, so exact inner-product search produced the same ordering as cosine similarity for these normalized vectors.
+
+A separate sparse index was constructed with BM25Okapi~\cite{meth_robertson2009bm25} using its default parameters. Preprocessing applied Unicode NFKC normalization, converted Bangla digits to Latin digits, and lowercased Latin characters. Tokenization preserved Bangla character sequences, English words, and numerical expressions.
+
+\subsubsection{Hybrid Retrieval and Reranking}
+
+Each question was accompanied by its service-domain label. Dense and sparse retrieval each retained up to 100 passages from that domain. The evaluation therefore assumed that the relevant service category was already known.
+
+The two rankings were combined through reciprocal rank fusion~\cite{meth_cormack2009rrf} with equal weight. For each list containing a passage, its contribution was one divided by the sum of 60 and its rank, with ranks starting at one. Contributions were added across the two lists. The 25 passages with the highest fused scores proceeded to reranking.
+
+BGE-reranker-v2-m3 (BAAI/bge-reranker-v2-m3)~\cite{baai2024reranker} scored each question and candidate passage jointly. Reranking used batches of four and a maximum pair length of 512 tokens. The five highest-scoring passages became the evidence supplied to the generator. Table~\ref{tab:retrieval_settings} lists the retrieval settings.
+
+\begin{table}[!t]
+\centering
+\caption{Retrieval and reranking configuration.}
+\label{tab:retrieval_settings}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.1}
+\begin{tabular}{p{0.43\columnwidth}p{0.49\columnwidth}}
+\hline
+\textbf{Component} & \textbf{Setting} \\
+\hline
+Passage length / overlap & 180 / 30 words \\
+Dense encoder & BAAI/bge-m3 \\
+Embedding batch size & 8 \\
+Dense index & FAISS IndexFlatIP \\
+Sparse retriever & BM25Okapi, default parameters \\
+Domain restriction & Supplied question domain \\
+Candidates per retriever & Up to 100 \\
+Rank fusion & RRF, constant 60, equal weights \\
+Candidates for reranking & 25 \\
+Reranker & BAAI/bge-reranker-v2-m3 \\
+Reranker batch size & 4 \\
+Maximum reranker pair length & 512 tokens \\
+Passages supplied to generator & 5 \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsubsection{Answer Generation}
+
+The prompt combined the question with the titles and contents of the selected passages. It requested a concise Bangla answer based on that evidence and called attention to fees, processing times, numerical values, and required documents. If the retrieved material did not contain the requested information, the model was instructed to acknowledge this.
+
+The generators received the same selected passages for each question. RAG inference used greedy decoding, a repetition penalty of 1.05, and an input limit of 7,000 tokens. The output limit was 450 tokens for Qwen and 500 tokens for Llama and Mistral.
+
+\subsection{Experiment 4: Combining Fine-Tuning and RAG}
+\label{exp:4}
+
+The final experiment combined the generators adapted in Experiment~\ref{exp:2} with the retrieval pipeline from Experiment~\ref{exp:3}. Each fine-tuned model received a test question and the same five passages supplied to its pretrained counterpart. The knowledge base, dense encoder, BM25 index, fusion procedure, and reranker were unchanged. No additional training of the retrieval components was performed.
+
+This comparison examined whether adaptation on the government service QA pairs helped a generator answer when external evidence was available. Comparing the combined setting with standalone fine-tuning assessed the contribution of retrieval. Comparing it with RAG assessed the effect of generator adaptation under the same evidence. The combined setting used greedy decoding, a repetition penalty of 1.05, a maximum input length of 7,000 tokens, and an output limit of 500 tokens for all three generators.
+
+\section{Results and Discussion}
+\label{sec:Results And Dis}
+
+% Intentionally left blank.
+
+\section{Limitations, Reliability, and Deployment Considerations}
+\label{sec:limitations}
+
+% Intentionally left blank.
+
+\section{Conclusion and Future Work}
+\label{sec:conclusion}
+
+% Intentionally left blank.
+
+\bibliographystyle{IEEEtran}
+\bibliography{reference}
+
+\end{document}

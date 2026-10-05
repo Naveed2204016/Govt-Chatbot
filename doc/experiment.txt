@@ -1,0 +1,122 @@
+﻿IV. EXPERIMENTS
+
+We evaluated prompting, supervised fine-tuning, retrieval-augmented generation (RAG), and RAG combined with fine-tuning for Bangla government service question answering. The experiments used Qwen2.5-7B-Instruct, Llama-3.1-8B-Instruct, and Mistral-7B-Instruct-v0.3 as answer generators. Each model was assessed on the same 248 test questions described in Section III. The comparison examined whether task-specific training, retrieved information, or their combination improved agreement with the reference answers.
+
+All experiments were carried out on Kaggle using an NVIDIA T4 GPU. Prompting and retrieval-based inference used 4-bit model representations. The pretrained generators were loaded with NF4 quantization, double quantization, and FP16 computation. Fine-tuning was performed with Unsloth. BGE-M3 served as the dense retrieval encoder, and BGE-reranker-v2-m3 was used to reorder retrieved passages. These retrieval components were kept fixed when the generators were fine-tuned.
+
+[INSERT FIGURE 3 HERE: Overview of the four experiments. Show prompting with optional demonstrations; training pairs leading to a fine-tuned generator; a knowledge base feeding the retrieval pipeline and pretrained generator; and the same retrieval pipeline feeding the fine-tuned generator. All four branches should end in an answer to a test question.]
+
+FIGURE 3. Experimental configurations for prompting, fine-tuning, RAG, and RAG combined with fine-tuning.
+
+A. EXPERIMENT 1: PROMPTING
+
+This experiment evaluated the instruction-tuned models without additional training or external retrieval. We used zero-shot prompting, few-shot prompting, and few-shot chain-of-thought prompting. The prompts followed each model's conversational format and requested answers in Bangla.
+
+1) ZERO-SHOT PROMPTING
+
+The model received an instruction and a test question without example answers. The instruction requested a concise response that addressed the information sought in the question, such as a fee, required document, or application procedure. This setting provided a baseline for answering from the model's existing knowledge.
+
+2) FEW-SHOT PROMPTING
+
+Few-shot prompting used three example questions and answers to establish the expected response format. For each service domain, three pairs were sampled from the training set using random seed 42, after removing duplicate questions and normalized exact matches with test questions. The selected examples were placed before each test question from the corresponding domain and remained fixed throughout the experiment. Qwen, Llama, and Mistral received the same examples in the same order, formatted according to their respective conversational templates. This arrangement provided a common set of demonstrations for comparing the three models.
+
+3) FEW-SHOT CHAIN-OF-THOUGHT PROMPTING
+
+The chain-of-thought setting extended the same three-shot procedure by including a brief explanatory rationale before the answer in each demonstration. The selected questions, reference answers, and example order were shared across the three models. Each model was instructed to provide a brief analysis followed by a concise final answer in Bangla. The final response was used for scoring.
+
+Llama and Mistral prompting used greedy decoding, a repetition penalty of 1.05, and a maximum of 500 generated tokens. Qwen also used greedy decoding, beginning with an output budget of 512 tokens. Responses that reached the limit were regenerated with larger budgets, up to 4,096 tokens for zero-shot prompting and 1,024 tokens for the few-shot settings.
+
+B. EXPERIMENT 2: FINE-TUNING
+
+The second experiment adapted each generator to the training QA pairs and evaluated it without retrieved passages. Training used the same 938 examples across the three models. The purpose was to assess the effect of learning the terminology and answer patterns of the selected government services.
+
+[INSERT FIGURE 4 HERE: Fine-tuning process. Show training QA pairs, conversation formatting, a frozen quantized generator with trainable LoRA adapters, optimization, and evaluation on the test questions.]
+
+FIGURE 4. QLoRA fine-tuning of the answer generators.
+
+1) TRAINING DATA REPRESENTATION
+
+Each training example was formatted as a conversation containing a system instruction, a user question, and the reference answer. Additional input accompanied the question where available. The conversation followed the corresponding model's instruction format, and training used an autoregressive language-modeling objective. Sequences were packed with a maximum training length of 1,024 tokens.
+
+2) MODEL CONFIGURATION
+
+We applied quantized low-rank adaptation (QLoRA) to train the generators within the available GPU resources. The backbone weights remained frozen in 4-bit form. Trainable adapters were added to the query, key, value, and output projections of the attention layers, as well as the gate, up, and down projections of the feed-forward layers. The adapter rank and scaling parameter were both set to 16, giving an alpha-to-rank ratio of one. Adapter dropout was zero, and no bias parameters were trained.
+
+3) MODEL TRAINING
+
+Each model was trained for three epochs using 8-bit AdamW with a learning rate of 0.0002. A per-device batch size of two and four gradient accumulation steps gave an effective batch size of eight sequences on one GPU. The learning rate followed a cosine schedule, with a warmup ratio of 0.03 and weight decay of 0.01. Unsloth gradient checkpointing was enabled, and the training seed was 3407. Checkpoints were retained after each epoch. Table II summarizes the shared settings.
+
+TABLE II. Fine-tuning configuration used for the three generators.
+
+Parameter                         Setting
+Adaptation                        QLoRA, frozen 4-bit backbone
+LoRA rank / alpha                 16 / 16
+LoRA dropout / bias               0 / none
+Epochs                            3
+Optimizer                         8-bit AdamW
+Learning rate                     0.0002
+Per-device batch size             2
+Gradient accumulation             4 steps
+Effective batch size              8 sequences
+Learning-rate schedule            Cosine
+Warmup ratio                      0.03
+Weight decay                      0.01
+Maximum sequence length           1,024 tokens
+Sequence packing                  Enabled
+Gradient checkpointing            Unsloth
+Random seed                       3407
+
+The fine-tuned generators then answered the test questions without access to the retrieval index. The output limit was 500 tokens for Llama and 256 tokens for Qwen and Mistral.
+
+C. EXPERIMENT 3: RAG
+
+The third experiment supplied external evidence to each pretrained generator without domain-specific fine-tuning. The retrieval pipeline combined dense and sparse search, fused their rankings, and reranked the resulting candidates before constructing the generation prompt.
+
+[INSERT FIGURE 5 HERE: Hybrid retrieval process. Show a question and supplied domain label entering BGE-M3 dense retrieval and BM25 sparse retrieval in parallel. Each contributes up to 100 passages. Show reciprocal rank fusion, the top 25 candidates, BGE reranking, the top five passages, and answer generation.]
+
+FIGURE 5. Hybrid retrieval and reranking for government service question answering.
+
+1) KNOWLEDGE BASE PREPARATION AND INDEXING
+
+Knowledge base records were divided into passages of at most 180 whitespace-delimited words, with an overlap of 30 words between adjacent passages. This produced 1,284 passages across the four domains. The indexed representation incorporated the title, topic, and passage content. Document identifiers, domain labels, and source URLs were retained as metadata.
+
+Dense representations were generated with BGE-M3 (BAAI/bge-m3), using batches of eight passages. Both question and passage embeddings were normalized to unit length. The passage vectors were stored in a FAISS IndexFlatIP index, so exact inner-product search produced the same ordering as cosine similarity for these normalized vectors.
+
+A separate sparse index was constructed with BM25Okapi using its default parameters. Preprocessing applied Unicode NFKC normalization, converted Bangla digits to Latin digits, and lowercased Latin characters. Tokenization preserved Bangla character sequences, English words, and numerical expressions.
+
+2) HYBRID RETRIEVAL AND RERANKING
+
+Each question was accompanied by its service-domain label. Dense and sparse retrieval each retained up to 100 passages from that domain. The evaluation therefore assumed that the relevant service category was already known.
+
+The two rankings were combined through reciprocal rank fusion with equal weight. For each list containing a passage, its contribution was one divided by the sum of 60 and its rank, with ranks starting at one. Contributions were added across the two lists. The 25 passages with the highest fused scores proceeded to reranking.
+
+BGE-reranker-v2-m3 (BAAI/bge-reranker-v2-m3) scored each question and candidate passage jointly. Reranking used batches of four and a maximum pair length of 512 tokens. The five highest-scoring passages became the evidence supplied to the generator. Table III lists the retrieval settings.
+
+TABLE III. Retrieval and reranking configuration.
+
+Component                         Setting
+Passage length / overlap          180 / 30 words
+Dense encoder                     BAAI/bge-m3
+Embedding batch size              8
+Dense index                       FAISS IndexFlatIP
+Sparse retriever                  BM25Okapi, default parameters
+Domain restriction                Supplied question domain
+Candidates per retriever          Up to 100
+Rank fusion                       RRF, constant 60, equal weights
+Candidates for reranking          25
+Reranker                          BAAI/bge-reranker-v2-m3
+Reranker batch size                4
+Maximum reranker pair length       512 tokens
+Passages supplied to generator     5
+
+3) ANSWER GENERATION
+
+The prompt combined the question with the titles and contents of the selected passages. It requested a concise Bangla answer based on that evidence and called attention to fees, processing times, numerical values, and required documents. If the retrieved material did not contain the requested information, the model was instructed to acknowledge this.
+
+The generators received the same selected passages for each question. RAG inference used greedy decoding, a repetition penalty of 1.05, and an input limit of 7,000 tokens. The output limit was 450 tokens for Qwen and 500 tokens for Llama and Mistral.
+
+D. EXPERIMENT 4: COMBINING FINE-TUNING AND RAG
+
+The final experiment combined the generators adapted in Experiment 2 with the retrieval pipeline from Experiment 3. Each fine-tuned model received a test question and the same five passages supplied to its pretrained counterpart. The knowledge base, dense encoder, BM25 index, fusion procedure, and reranker were unchanged. No additional training of the retrieval components was performed.
+
+This comparison examined whether adaptation on the government service QA pairs helped a generator answer when external evidence was available. Comparing the combined setting with standalone fine-tuning assessed the contribution of retrieval. Comparing it with RAG assessed the effect of generator adaptation under the same evidence. The combined setting used greedy decoding, a repetition penalty of 1.05, a maximum input length of 7,000 tokens, and an output limit of 500 tokens for all three generators.
